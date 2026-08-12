@@ -7,4 +7,10 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
+.venv/
+
+*.pyc
+chroma_db/
+.env
+data/*
+!data/.gitkeep
