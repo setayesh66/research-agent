@@ -11,6 +11,7 @@ from the shop's internal documents. Do not make up policies, prices, or facts â€
 always search first. If the documents don't contain the answer, say so honestly."""
 
 
+
 def build_agent():
     llm = ChatOllama(model=MODEL, temperature=0)
 
