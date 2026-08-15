@@ -1,13 +1,19 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from langchain_ollama import ChatOllama
 from langchain.agents import create_agent
 from app.tools.document_search import search_documents
+from app.tools.web_search import web_search
+
 
 MODEL = "qwen3:8b"
 
 SYSTEM_PROMPT = """You are a helpful assistant for Aurora Jewelry Shop.
-Answer questions using the search_documents tool to find accurate information
-from the shop's internal documents. Do not make up policies, prices, or facts —
-always search first. If the documents don't contain the answer, say so honestly."""
+You have two tools available:
+- search_documents: use this for questions about the shop's own policies, products, pricing, or FAQs.
+- web_search: use this for general knowledge or current-events questions unrelated to the shop's internal documents.
+Always pick the tool that matches the question. Do not make up answers — always search first."""
 
 
 def build_agent():
@@ -15,7 +21,7 @@ def build_agent():
 
     agent = create_agent(
         model=llm,
-        tools=[search_documents],
+        tools=[search_documents, web_search],
         system_prompt=SYSTEM_PROMPT,
     )
     return agent
@@ -37,4 +43,4 @@ if __name__ == "__main__":
         final_message = result["messages"][-1]
         print(f"\nAgent: {final_message.content}\n")
 
-        messages = result["messages"] 
+        messages = result["messages"]
