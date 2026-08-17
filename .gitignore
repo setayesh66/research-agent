@@ -14,3 +14,5 @@ chroma_db/
 .env
 data/*
 !data/.gitkeep
+
+chat_history.db
