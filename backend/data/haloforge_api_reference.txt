@@ -1,0 +1,36 @@
+Haloforge Cloud - API Reference Guide
+
+Authentication
+All API requests require a Bearer token in the Authorization header. Tokens are generated from the Haloforge dashboard under Settings > API Keys. Tokens follow the format hf_live_ for production keys and hf_test_ for sandbox keys. Requests without a valid token return a 401 Unauthorized response. Tokens do not expire automatically but can be revoked manually at any time from the dashboard.
+
+Rate Limits
+Free tier accounts are limited to 100 requests per minute and 10,000 requests per day. Pro tier accounts are limited to 1,000 requests per minute and 500,000 requests per day. Enterprise tier has no fixed rate limit and is negotiated per contract. Exceeding your rate limit returns a 429 Too Many Requests response with a Retry-After header indicating how many seconds to wait before retrying.
+
+Core Endpoints
+
+POST /v1/objects
+Uploads a new object to storage. Requires a bucket_id and a file payload. Maximum file size is 5GB on Free and Pro tiers, and 50GB on Enterprise tier. Returns a 201 Created response with the object's unique ID and a public or signed URL depending on the bucket's visibility setting.
+
+GET /v1/objects/{object_id}
+Retrieves metadata for a specific object, including size, content type, upload timestamp, and checksum. Does not return the file contents itself; use the download_url field in the response to fetch the actual file.
+
+DELETE /v1/objects/{object_id}
+Permanently deletes an object. This action cannot be undone. Deleted objects are not recoverable after 24 hours, during which they remain in a soft-deleted state and can be restored via POST /v1/objects/{object_id}/restore.
+
+POST /v1/buckets
+Creates a new storage bucket. Requires a name (must be globally unique) and a region (available regions: us-east, us-west, eu-central, ap-southeast). Bucket names must be lowercase, 3-63 characters, and contain only letters, numbers, and hyphens.
+
+Webhooks
+Haloforge can send webhook notifications for object.created, object.deleted, and bucket.quota_exceeded events. Configure webhook URLs in the dashboard under Settings > Webhooks. Webhook payloads are signed with HMAC-SHA256; verify the X-Haloforge-Signature header against your webhook secret to confirm authenticity. Failed webhook deliveries are retried up to 5 times with exponential backoff.
+
+Error Codes
+400 Bad Request - the request payload is malformed or missing required fields.
+401 Unauthorized - missing or invalid API token.
+403 Forbidden - valid token, but insufficient permissions for this action.
+404 Not Found - the requested object or bucket does not exist.
+409 Conflict - a resource with this name or ID already exists.
+429 Too Many Requests - rate limit exceeded.
+500 Internal Server Error - an unexpected error occurred on Haloforge's side; these are logged automatically and our team is alerted.
+
+SDKs and Client Libraries
+Official SDKs are available for Python, Node.js, Go, and Ruby. All SDKs support automatic retries with exponential backoff for 429 and 500 responses. The Python SDK requires Python 3.9 or later and can be installed via pip install haloforge.

@@ -12,7 +12,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const sessionId = "session-1"; // temporary fixed ID
+  const [sessionId] = useState(() => crypto.randomUUID());
 
   async function sendMessage() {
     if (!input.trim()) return;
@@ -38,7 +38,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4">
-      <h1 className="text-xl font-semibold mb-4">Aurora Jewelry Agent</h1>
+      <h1 className="text-xl font-semibold mb-4">Haloforge Support Agent</h1>
 
       <div className="flex-1 overflow-y-auto space-y-3 mb-4">
         {messages.map((m, i) => (
@@ -62,7 +62,7 @@ export default function ChatPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          placeholder="Ask about our jewelry shop..."
+          placeholder="Ask about the Haloforge API..."
         />
         <button
           className="bg-blue-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
