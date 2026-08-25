@@ -1,36 +1,112 @@
-Haloforge Cloud - API Reference Guide
+Haloforge Cloud - Complete API Reference Guide
 
-Authentication
-All API requests require a Bearer token in the Authorization header. Tokens are generated from the Haloforge dashboard under Settings > API Keys. Tokens follow the format hf_live_ for production keys and hf_test_ for sandbox keys. Requests without a valid token return a 401 Unauthorized response. Tokens do not expire automatically but can be revoked manually at any time from the dashboard.
+===========================================
+SECTION 1: GETTING STARTED
+===========================================
 
-Rate Limits
-Free tier accounts are limited to 100 requests per minute and 10,000 requests per day. Pro tier accounts are limited to 1,000 requests per minute and 500,000 requests per day. Enterprise tier has no fixed rate limit and is negotiated per contract. Exceeding your rate limit returns a 429 Too Many Requests response with a Retry-After header indicating how many seconds to wait before retrying.
+What is Haloforge?
+Haloforge is a cloud object storage and API platform built for developers who need reliable, scalable file storage without managing their own infrastructure. Our REST API lets you upload, retrieve, and manage files programmatically, with built-in support for access control, webhooks, and multi-region storage.
 
-Core Endpoints
+Creating an Account
+Sign up at haloforge.example/signup with an email and password, or via GitHub/Google OAuth. New accounts are automatically placed on the Free tier and receive a 14-day trial of Pro tier features with no credit card required. After the trial period, your account automatically reverts to Free tier limits unless you add a payment method and upgrade.
+
+Your First API Call
+After creating an account, generate an API key from the dashboard under Settings > API Keys. A minimal upload request looks like this:
+
+curl -X POST https://api.haloforge.example/v1/objects \
+  -H "Authorization: Bearer hf_live_xxxxx" \
+  -F "bucket_id=my-bucket" \
+  -F "file=@photo.jpg"
+
+===========================================
+SECTION 2: AUTHENTICATION
+===========================================
+
+All API requests require a Bearer token in the Authorization header. Tokens are generated from the dashboard under Settings > API Keys. Tokens follow the format hf_live_ for production keys and hf_test_ for sandbox keys. Sandbox keys work against a separate test environment with no effect on real billing or storage usage, useful for development and CI pipelines.
+
+Requests without a valid token return a 401 Unauthorized response. Requests with a valid but insufficient-permission token return 403 Forbidden. Tokens do not expire automatically but can be revoked manually at any time from the dashboard, which takes effect within 60 seconds.
+
+Token Scopes
+Tokens can be scoped to read-only, write-only, or full access at creation time. We recommend using read-only tokens for any client-side or public-facing code, and reserving full-access tokens for trusted backend services only.
+
+Two-Factor Authentication
+Account-level actions in the dashboard (billing changes, token creation, team member invites) can optionally require 2FA via an authenticator app. This is strongly recommended for Pro and Enterprise accounts and is mandatory for accounts with more than 3 team members.
+
+===========================================
+SECTION 3: RATE LIMITS
+===========================================
+
+Free tier accounts are limited to 100 requests per minute and 10,000 requests per day.
+Pro tier accounts are limited to 1,000 requests per minute and 500,000 requests per day.
+Enterprise tier has no fixed rate limit and is negotiated per contract, typically starting at 10,000 requests per minute.
+
+Exceeding your rate limit returns a 429 Too Many Requests response with a Retry-After header indicating how many seconds to wait before retrying. Rate limits are calculated per API key, not per account, so accounts with multiple keys have limits tracked separately for each one.
+
+Burst Allowance
+All tiers include a short burst allowance of 2x your per-minute limit for up to 10 seconds, to accommodate brief traffic spikes without triggering rate limiting. Sustained traffic above your limit will still be throttled.
+
+===========================================
+SECTION 4: CORE ENDPOINTS
+===========================================
 
 POST /v1/objects
-Uploads a new object to storage. Requires a bucket_id and a file payload. Maximum file size is 5GB on Free and Pro tiers, and 50GB on Enterprise tier. Returns a 201 Created response with the object's unique ID and a public or signed URL depending on the bucket's visibility setting.
+Uploads a new object to storage. Requires a bucket_id and a file payload. Maximum file size is 5GB on Free and Pro tiers, and 50GB on Enterprise tier. Returns a 201 Created response with the object's unique ID and a public or signed URL depending on the bucket's visibility setting. Optional parameters include content_type (auto-detected if omitted) and metadata (a JSON object of up to 10 custom key-value pairs).
 
 GET /v1/objects/{object_id}
-Retrieves metadata for a specific object, including size, content type, upload timestamp, and checksum. Does not return the file contents itself; use the download_url field in the response to fetch the actual file.
+Retrieves metadata for a specific object, including size, content type, upload timestamp, checksum, and custom metadata. Does not return the file contents itself; use the download_url field in the response to fetch the actual file. The download_url is a signed URL valid for 1 hour by default, configurable up to 24 hours.
 
 DELETE /v1/objects/{object_id}
-Permanently deletes an object. This action cannot be undone. Deleted objects are not recoverable after 24 hours, during which they remain in a soft-deleted state and can be restored via POST /v1/objects/{object_id}/restore.
+Permanently deletes an object. This action cannot be undone from the API. Deleted objects are not recoverable after 24 hours, during which they remain in a soft-deleted state and can be restored via POST /v1/objects/{object_id}/restore. After 24 hours, objects are purged permanently and irreversibly.
+
+GET /v1/objects
+Lists objects within a bucket, with optional prefix filtering and pagination. Returns up to 100 objects per page by default, maximum 1000 with the limit parameter. Use the cursor field in the response to fetch subsequent pages.
 
 POST /v1/buckets
-Creates a new storage bucket. Requires a name (must be globally unique) and a region (available regions: us-east, us-west, eu-central, ap-southeast). Bucket names must be lowercase, 3-63 characters, and contain only letters, numbers, and hyphens.
+Creates a new storage bucket. Requires a name (must be globally unique across all Haloforge customers) and a region (available regions: us-east, us-west, eu-central, ap-southeast). Bucket names must be lowercase, 3-63 characters, and contain only letters, numbers, and hyphens. Buckets are private by default; set visibility to "public" to allow unauthenticated read access to objects within them.
 
-Webhooks
-Haloforge can send webhook notifications for object.created, object.deleted, and bucket.quota_exceeded events. Configure webhook URLs in the dashboard under Settings > Webhooks. Webhook payloads are signed with HMAC-SHA256; verify the X-Haloforge-Signature header against your webhook secret to confirm authenticity. Failed webhook deliveries are retried up to 5 times with exponential backoff.
+DELETE /v1/buckets/{bucket_id}
+Deletes a bucket. A bucket must be completely empty before it can be deleted; the API returns 409 Conflict if objects still exist within it.
 
-Error Codes
-400 Bad Request - the request payload is malformed or missing required fields.
-401 Unauthorized - missing or invalid API token.
-403 Forbidden - valid token, but insufficient permissions for this action.
-404 Not Found - the requested object or bucket does not exist.
-409 Conflict - a resource with this name or ID already exists.
-429 Too Many Requests - rate limit exceeded.
-500 Internal Server Error - an unexpected error occurred on Haloforge's side; these are logged automatically and our team is alerted.
+PATCH /v1/buckets/{bucket_id}
+Updates a bucket's settings, including visibility, default object expiration, and CORS configuration for browser-based uploads.
 
-SDKs and Client Libraries
-Official SDKs are available for Python, Node.js, Go, and Ruby. All SDKs support automatic retries with exponential backoff for 429 and 500 responses. The Python SDK requires Python 3.9 or later and can be installed via pip install haloforge.
+===========================================
+SECTION 5: WEBHOOKS
+===========================================
+
+Haloforge can send webhook notifications for the following events:
+- object.created — fired when an upload completes successfully
+- object.deleted — fired when an object is deleted or permanently purged
+- bucket.quota_exceeded — fired when an account's storage or request quota is exceeded
+- bucket.created — fired when a new bucket is created
+- account.trial_ending — fired 3 days before a free trial expires
+
+Configure webhook URLs in the dashboard under Settings > Webhooks. Webhook payloads are signed with HMAC-SHA256; verify the X-Haloforge-Signature header against your webhook secret to confirm authenticity and reject unsigned or incorrectly-signed requests. Failed webhook deliveries are retried up to 5 times with exponential backoff, starting at 30 seconds and doubling each retry, up to a maximum of 8 minutes between attempts. After 5 failed attempts, the event is marked as failed and visible in the dashboard's webhook log, but is not retried further.
+
+===========================================
+SECTION 6: ERROR CODES
+===========================================
+
+400 Bad Request — the request payload is malformed or missing required fields. The response body includes a details field listing exactly which fields failed validation.
+401 Unauthorized — missing or invalid API token.
+403 Forbidden — valid token, but insufficient permissions for this action, or the account's trial has expired without upgrading.
+404 Not Found — the requested object or bucket does not exist, or has already been permanently deleted.
+409 Conflict — a resource with this name or ID already exists, or a bucket deletion was attempted while it still contains objects.
+413 Payload Too Large — the uploaded file exceeds your tier's maximum file size limit.
+429 Too Many Requests — rate limit exceeded; see the Retry-After header.
+500 Internal Server Error — an unexpected error occurred on Haloforge's side; these are logged automatically and our on-call team is alerted within 60 seconds.
+503 Service Unavailable — temporary maintenance or an active incident; check status.haloforge.example for details.
+
+===========================================
+SECTION 7: SDKS AND CLIENT LIBRARIES
+===========================================
+
+Official SDKs are available for Python, Node.js, Go, and Ruby. Community-maintained SDKs exist for Rust and PHP but are not officially supported.
+
+All official SDKs support automatic retries with exponential backoff for 429 and 500 responses, configurable via a max_retries parameter (default: 3). The Python SDK requires Python 3.9 or later and can be installed via pip install haloforge. The Node.js SDK requires Node 18 or later and supports both CommonJS and ES module imports.
+
+===========================================
+SECTION 8: DATA RESIDENCY AND COMPLIANCE
+===========================================
+
+Data does not automatically replicate across regions; each bucket lives in exactly one region unless you enable the optional Cross-Region Replication add-on (available on Pro and Enterprise tiers, priced separately). Haloforge is SOC 2 Type II certified and GDPR compliant. Enterprise customers requiring HIPAA compliance can request a signed Business Associate Agreement (BAA) through their account manager.

@@ -4,6 +4,16 @@ export type ChatResponse = {
   reply: string;
 };
 
+export type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type ConversationSummary = {
+  id: string;
+  title: string;
+};
+
 export async function sendChatMessage(
   message: string,
   sessionId: string
@@ -16,6 +26,28 @@ export async function sendChatMessage(
 
   if (!res.ok) {
     throw new Error(`Chat request failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function getConversations(): Promise<ConversationSummary[]> {
+  const res = await fetch(`${API_BASE_URL}/conversations`);
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch conversations: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function getConversationMessages(
+  conversationId: string
+): Promise<Message[]> {
+  const res = await fetch(`${API_BASE_URL}/conversations/${conversationId}/messages`);
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch messages: ${res.status}`);
   }
 
   return res.json();

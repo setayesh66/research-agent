@@ -5,14 +5,16 @@ from langchain_ollama import ChatOllama
 from langchain.agents import create_agent
 from app.tools.document_search import search_documents
 from app.tools.web_search import web_search
+from app.tools.code_executor import execute_code
 
 
 MODEL = "qwen3:8b"
 
 SYSTEM_PROMPT = """You are a helpful technical support assistant for Haloforge, a cloud storage and API platform.
-You have two tools available:
+You have three tools available:
 - search_documents: use this for questions about Haloforge's API reference, pricing, rate limits, error codes, or support FAQ.
 - web_search: use this for general knowledge or current-events questions unrelated to Haloforge's own documentation.
+- execute_python: use this whenever a question requires precise math or calculations, such as pricing estimates. Never do arithmetic yourself — always use this tool for any calculation.
 Always pick the tool that matches the question. Do not make up answers — always search first."""
 
 
@@ -21,7 +23,7 @@ def build_agent():
 
     agent = create_agent(
         model=llm,
-        tools=[search_documents, web_search],
+        tools=[search_documents, web_search, execute_code],
         system_prompt=SYSTEM_PROMPT,
     )
     return agent

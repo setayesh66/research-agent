@@ -60,6 +60,45 @@ def chat(req:ChatRequest, db: Session = Depends(get_db)):
 
 
 
+
+
+@app.get("/conversations")
+def list_conversations(db: Session= Depends(get_db)):
+    conversations=(
+        db.query(Conversation).
+        order_by(Conversation.created_at.desc()).
+        all()
+    )
+
+    return [
+        {"id": str(c.id), "title": c.title or "New chat", "created_at": c.created_at}
+        for c in conversations
+    ]
+
+
+@app.get("/conversations/{conversation_id}/messages")
+def list_messages(conversation_id: str, db: Session=Depends(get_db)):
+    messages=(
+        db.query(MessageRecord)
+        .filter(MessageRecord.conversation_id==conversation_id)
+        .order_by(MessageRecord.created_at.desc())
+        .all()
+    )
+
+    return[
+        {"role":m.role, "content":m.content} for m in messages
+    ] 
+
+
+
+
+
+
+
+
+
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
