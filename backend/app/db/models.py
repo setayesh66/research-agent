@@ -23,7 +23,8 @@ Base = declarative_base()
 class Conversation(Base):
     __tablename__ = "conversations"
 
-    id = Column(String, primary_key=True)  # this is our session_id
+    id = Column(String, primary_key=True)
+    title = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     messages = relationship(
