@@ -32,12 +32,12 @@ class Conversation(Base):
     )
 
 
-class MessageRecord(Base):
+class MessageRecord(Base): 
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     conversation_id = Column(String, ForeignKey("conversations.id"))
-    role = Column(String)       # "user" or "assistant"
+    role = Column(String)    
     content = Column(String)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

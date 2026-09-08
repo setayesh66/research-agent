@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CloudSceneLoader } from "@/components/Hero/CloudSceneLoader";
-import { sendChatMessage, getConversations, getConversationMessages } from "@/lib/api";
+import { sendChatMessage, getConversations, getConversationMessages, streamChatMessage } from "@/lib/api";
 import type { Message, ConversationSummary } from "@/lib/api";
 
 type Phase = "landing" | "chat";
@@ -101,12 +101,26 @@ useEffect(() => {
 
     if (phase === "landing") setPhase("chat");
 
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    // Add the user's message, plus an empty assistant message we'll fill in as tokens arrive.
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: userMessage },
+      { role: "assistant", content: "" },
+    ]);
     setIsSending(true);
 
     try {
-      const { reply } = await sendChatMessage(userMessage, sessionId);
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      await streamChatMessage(userMessage, sessionId, (token) => {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastIndex = updated.length - 1;
+          updated[lastIndex] = {
+            ...updated[lastIndex],
+            content: updated[lastIndex].content + token,
+          };
+          return updated;
+        });
+      });
     } catch (err) {
       console.error(err);
       setError("Couldn't reach HaloForge. Is the backend running?");
@@ -114,7 +128,6 @@ useEffect(() => {
       setIsSending(false);
     }
   }
-
   return (
     <main className="relative isolate h-screen w-full overflow-hidden bg-gradient-to-b from-sky-300 via-sky-100 to-sky-50">
       {/* Top bar */}
@@ -212,7 +225,7 @@ useEffect(() => {
             </div>
           ))}
 
-          {isSending && (
+          {isSending && messages[messages.length - 1]?.content === "" && (
             <div className="self-start rounded-2xl bg-white px-4 py-2 text-sm text-slate-400 shadow">
               Thinking…
             </div>
